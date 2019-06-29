@@ -2421,6 +2421,15 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
       LangStd = OpenCLLangStd;
   }
 
+  // -sycl-std applies to any SYCL source, not only those containing kernels,
+  // but also those using the SYCL API
+  if (const Arg  *A = Args.getLastArg(OPT_sycl_std_EQ)) {
+    Opts.SYCLVersion = 121;
+      // llvm::StringSwitch<LangStandard::Kind>(A->getValue())
+      //.cases("1.2.1", "1.2.1", LangStandard::lang_sycl121)
+      //.Default(LangStandard::lang_unspecified);
+  }
+
   Opts.IncludeDefaultHeader = Args.hasArg(OPT_finclude_default_header);
   Opts.DeclareOpenCLBuiltins = Args.hasArg(OPT_fdeclare_opencl_builtins);
 

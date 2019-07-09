@@ -2423,11 +2423,10 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
 
   // -sycl-std applies to any SYCL source, not only those containing kernels,
   // but also those using the SYCL API
-  if (const Arg  *A = Args.getLastArg(OPT_sycl_std_EQ)) {
-    Opts.SYCLVersion = 121;
-      // llvm::StringSwitch<LangStandard::Kind>(A->getValue())
-      //.cases("1.2.1", "1.2.1", LangStandard::lang_sycl121)
-      //.Default(LangStandard::lang_unspecified);
+  if(const Arg  *A = Args.getLastArg(OPT_sycl_std_EQ)) {
+    Opts.setSYCLVersion(llvm::StringSwitch<LangOptions::SYCLVersionList>(A->getValue())
+      .Cases("1.2.1",  "121", "sycl-1.2.1", LangOptions::SYCLVersionList::sycl_121)
+      .Default(LangOptions::SYCLVersionList::undefined));
   }
 
   Opts.IncludeDefaultHeader = Args.hasArg(OPT_finclude_default_header);

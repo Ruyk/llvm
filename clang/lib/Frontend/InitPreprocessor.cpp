@@ -450,17 +450,12 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     }
   }
 
-  if (LangOpts.SYCLVersion) {
-    switch (LangOpts.SYCLVersion) {
-      case 120:
-        Builder.defineMacro("CL_SYCL_LANGUAGE_VERSION", "120");
-        break;
-      case 121:
-        Builder.defineMacro("CL_SYCL_LANGUAGE_VERSION", "121");
-        break;
-      default:
-        llvm_unreachable("Unsupported SYCL version");
-    }
+  switch (LangOpts.getSYCLVersion()) {
+    case LangOptions::SYCLVersionList::sycl_121:
+      Builder.defineMacro("CL_SYCL_LANGUAGE_VERSION", "121");
+      break;
+    default:
+      llvm_unreachable("Unsupported SYCL version");
   }
 
 

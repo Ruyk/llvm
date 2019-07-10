@@ -450,6 +450,7 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     }
   }
 
+  // TODO: How do I enable this only if -sycl has been set?
   switch (LangOpts.getSYCLVersion()) {
     case LangOptions::SYCLVersionList::sycl_121:
       Builder.defineMacro("CL_SYCL_LANGUAGE_VERSION", "121");

@@ -114,7 +114,7 @@ public:
   };
 
   enum class SYCLVersionList {
-    sycl_121,
+    sycl_1_2_1,
     undefined
   };
 

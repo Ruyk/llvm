@@ -2425,8 +2425,14 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   // but also those using the SYCL API
   if(const Arg  *A = Args.getLastArg(OPT_sycl_std_EQ)) {
     Opts.setSYCLVersion(llvm::StringSwitch<LangOptions::SYCLVersionList>(A->getValue())
-      .Cases("1.2.1",  "121", "sycl-1.2.1", LangOptions::SYCLVersionList::sycl_121)
+      .Cases("1.2.1",  "121", "sycl-1.2.1", LangOptions::SYCLVersionList::sycl_1_2_1)
       .Default(LangOptions::SYCLVersionList::undefined));
+
+    if (Opts.getSYCLVersion() == LangOptions::SYCLVersionList::undefined) {
+      // User has passed an invalid value to the flag, this is an error
+      Diags.Report(diag::err_drv_invalid_value) 
+          << A->getAsString(Args) << A->getValue();
+    }
   }
 
   Opts.IncludeDefaultHeader = Args.hasArg(OPT_finclude_default_header);
@@ -2469,6 +2475,9 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
 
   if (Opts.CUDAIsDevice && Args.hasArg(OPT_fcuda_approx_transcendentals))
     Opts.CUDADeviceApproxTranscendentals = 1;
+
+  if (Args.hasArg(OPT_fsycl_is_device))
+      Opts.setSYCLVersion(LangOptions::SYCLVersionList::sycl_1_2_1);
 
   Opts.GPURelocatableDeviceCode = Args.hasArg(OPT_fgpu_rdc);
 

@@ -450,15 +450,16 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     }
   }
 
-  // TODO: How do I enable this only if -sycl has been set?
+  // SYCL Version is set to a value when building SYCL applications
   switch (LangOpts.getSYCLVersion()) {
-    case LangOptions::SYCLVersionList::sycl_121:
+    case LangOptions::SYCLVersionList::sycl_1_2_1:
       Builder.defineMacro("CL_SYCL_LANGUAGE_VERSION", "121");
       break;
+    case LangOptions::SYCLVersionList::undefined:
     default:
-      llvm_unreachable("Unsupported SYCL version");
+      // This is not a SYCL source, nothing to add
+      break;
   }
-
 
   // Not "standard" per se, but available even with the -undef flag.
   if (LangOpts.AsmPreprocessor)

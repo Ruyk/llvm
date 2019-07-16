@@ -2476,9 +2476,6 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   if (Opts.CUDAIsDevice && Args.hasArg(OPT_fcuda_approx_transcendentals))
     Opts.CUDADeviceApproxTranscendentals = 1;
 
-  if (Args.hasArg(OPT_fsycl_is_device))
-      Opts.setSYCLVersion(LangOptions::SYCLVersionList::sycl_1_2_1);
-
   Opts.GPURelocatableDeviceCode = Args.hasArg(OPT_fgpu_rdc);
 
   Opts.SYCLIntHeader = Args.getLastArgValue(OPT_fsycl_int_header);

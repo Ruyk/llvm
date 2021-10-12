@@ -2335,8 +2335,6 @@ pi_result cuda_piEnqueueMemBufferRead(pi_queue command_queue, pi_mem buffer,
 pi_result cuda_piEventsWait(pi_uint32 num_events, const pi_event *event_list) {
 
   try {
-    assert(num_events != 0);
-    assert(event_list);
     if (num_events == 0) {
       return PI_INVALID_VALUE;
     }

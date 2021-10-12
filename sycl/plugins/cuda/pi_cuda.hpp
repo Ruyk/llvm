@@ -591,34 +591,31 @@ struct _pi_kernel {
   struct arguments {
     static constexpr size_t MAX_PARAM_BYTES = 4000u;
     using args_t = std::array<char, MAX_PARAM_BYTES>;
-    using args_size_t = std::vector<size_t>;
-    using args_index_t = std::vector<void *>;
+    using args_size_t = std::array<size_t, MAX_PARAM_BYTES>;
+    using args_index_t = std::array<void *, MAX_PARAM_BYTES>;
     args_t storage_;
     args_size_t paramSizes_;
     args_index_t indices_;
-    args_size_t offsetPerIndex_;
+    pi_uint32 offsetSum{0};
+    size_t nArgs{0}; // excluding implicitOffsetArgs, never actually used (yet)
 
     std::uint32_t implicitOffsetArgs_[3] = {0, 0, 0};
 
     arguments() {
-      // Place the implicit offset index at the end of the indicies collection
-      indices_.emplace_back(&implicitOffsetArgs_);
+      // By filling with implicit offset args first, we ensure it will always
+      // be the last argument.
+      indices_.fill(&implicitOffsetArgs_);
     }
 
     /// Adds an argument to the kernel.
     /// If the argument existed before, it is replaced.
     /// Otherwise, it is added.
-    /// Gaps are filled with empty arguments.
+    /// Gaps are filled with empty arguments. TODO not quite true any more
     /// Implicit offset argument is kept at the back of the indices collection.
     void add_arg(size_t index, size_t size, const void *arg,
                  size_t localSize = 0) {
-      if (index + 2 > indices_.size()) {
-        // Move implicit offset argument index with the end
-        indices_.resize(index + 2, indices_.back());
-        // Ensure enough space for the new argument
-        paramSizes_.resize(index + 1);
-        offsetPerIndex_.resize(index + 1);
-      }
+      if (index + 1 > nArgs) nArgs = index + 1;
+
       paramSizes_[index] = size;
       // calculate the insertion point on the array
       size_t insertPos = std::accumulate(std::begin(paramSizes_),
@@ -626,7 +623,7 @@ struct _pi_kernel {
       // Update the stored value for the argument
       std::memcpy(&storage_[insertPos], arg, size);
       indices_[index] = &storage_[insertPos];
-      offsetPerIndex_[index] = localSize;
+      offsetSum += localSize;
     }
 
     void add_local_arg(size_t index, size_t size) {
@@ -639,16 +636,11 @@ struct _pi_kernel {
       std::memcpy(implicitOffsetArgs_, implicitOffset, size);
     }
 
-    void clear_local_size() {
-      std::fill(std::begin(offsetPerIndex_), std::end(offsetPerIndex_), 0);
-    }
+    void clear_local_size() { offsetSum = 0; }
 
     const args_index_t &get_indices() const noexcept { return indices_; }
 
-    pi_uint32 get_local_size() const {
-      return std::accumulate(std::begin(offsetPerIndex_),
-                             std::end(offsetPerIndex_), 0);
-    }
+    pi_uint32 get_local_size() const { return offsetSum; }
   } args_;
 
   _pi_kernel(CUfunction func, CUfunction funcWithOffsetParam, const char *name,

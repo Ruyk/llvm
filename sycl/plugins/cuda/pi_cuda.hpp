@@ -609,12 +609,12 @@ struct _pi_kernel {
     using args_size_t = std::array<size_t, MAX_PARAM_BYTES>;
     using args_index_t = std::array<void *, MAX_PARAM_BYTES>;
     args_t storage_;
-    args_size_t paramSizes_;
     // By filling indices_ with implicit offset args first, we ensure it will always
     // be the last argument.
     args_index_t indices_ = { implicitOffsetArgs_ };
     pi_uint32 offsetSum{0};
     size_t nArgs{0}; // excluding implicitOffsetArgs, never actually used (yet)
+    size_t sizeAccum{0};
 
     std::uint32_t implicitOffsetArgs_[3] = {0, 0, 0};
 
@@ -625,15 +625,19 @@ struct _pi_kernel {
     /// Implicit offset argument is kept at the back of the indices collection.
     void add_arg(size_t index, size_t size, const void *arg,
                  size_t localSize = 0) {
+
+      // TODO - this struct is reused as-is for every kernel, so need to reset
+      // somehow. Could commandeer clear_local_size() but this will do for now
+      if (index == 0) {
+        sizeAccum = 0;
+        nArgs = 0;
+      }
       if (index + 1 > nArgs) nArgs = index + 1;
 
-      paramSizes_[index] = size;
-      // calculate the insertion point on the array
-      size_t insertPos = std::accumulate(std::begin(paramSizes_),
-                                         std::begin(paramSizes_) + index, 0);
       // Update the stored value for the argument
-      std::memcpy(&storage_[insertPos], arg, size);
-      indices_[index] = &storage_[insertPos];
+      std::memcpy(&storage_[sizeAccum], arg, size);
+      indices_[index] = &storage_[sizeAccum];
+      sizeAccum += size;
       offsetSum += localSize;
     }
 

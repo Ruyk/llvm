@@ -376,15 +376,16 @@ struct _pi_queue {
   using native_type = CUstream;
 
   native_type stream_;
+  native_type memStream_;
   _pi_context *context_;
   _pi_device *device_;
   pi_queue_properties properties_;
   std::atomic_uint32_t refCount_;
   std::atomic_uint32_t eventCount_;
 
-  _pi_queue(CUstream stream, _pi_context *context, _pi_device *device,
+  _pi_queue(CUstream stream, CUstream memStream, _pi_context *context, _pi_device *device,
             pi_queue_properties properties)
-      : stream_{stream}, context_{context}, device_{device},
+      : stream_{stream}, memStream_{memStream}, context_{context}, device_{device},
         properties_{properties}, refCount_{1}, eventCount_{0} {
     cuda_piContextRetain(context_);
     cuda_piDeviceRetain(device_);
@@ -395,7 +396,9 @@ struct _pi_queue {
     cuda_piDeviceRelease(device_);
   }
 
-  native_type get() const noexcept { return stream_; };
+  native_type get() const noexcept { return stream_; }; // TODO what about memStream_?
+
+  native_type get_mem() const noexcept { return memStream_; };
 
   _pi_context *get_context() const { return context_; };
 
@@ -412,19 +415,21 @@ typedef void (*pfn_notify)(pi_event event, pi_int32 eventCommandStatus,
                            void *userData);
 /// PI Event mapping to CUevent
 ///
-struct _pi_event {
+struct _pi_event { // TODO map to stream here for stream vs memStream?
 public:
   using native_type = CUevent;
 
   pi_result record();
 
-  pi_result wait();
+  pi_result wait(); // _pi_event->wait() is host blocking!
 
   pi_result start();
 
   native_type get() const noexcept { return evEnd_; };
 
   pi_queue get_queue() const noexcept { return queue_; }
+
+  CUstream get_stream() const noexcept;
 
   pi_command_type get_command_type() const noexcept { return commandType_; }
 
@@ -490,9 +495,9 @@ private:
                          // on through a call to wait(), which implies
                          // that it has completed.
 
-  bool isRecorded_; // Signifies wether a native CUDA event has been recorded
+  bool isRecorded_; // Signifies whether a native CUDA event has been recorded
                     // yet.
-  bool isStarted_;  // Signifies wether the operation associated with the
+  bool isStarted_;  // Signifies whether the operation associated with the
                     // PI event has started or not
                     //
 

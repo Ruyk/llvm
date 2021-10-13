@@ -398,7 +398,7 @@ struct _pi_queue {
 
   native_type get() const noexcept { return stream_; }; // TODO what about memStream_?
 
-  native_type get_mem() const noexcept { return memStream_; };
+  native_type get_alt_stream() const noexcept { return memStream_; };
 
   _pi_context *get_context() const { return context_; };
 

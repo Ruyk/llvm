@@ -613,7 +613,6 @@ struct _pi_kernel {
     // be the last argument.
     args_index_t indices_ = { implicitOffsetArgs_ };
     pi_uint32 offsetSum{0};
-    size_t nArgs{0}; // excluding implicitOffsetArgs, never actually used (yet)
     size_t sizeAccum{0};
 
     std::uint32_t implicitOffsetArgs_[3] = {0, 0, 0};
@@ -628,11 +627,7 @@ struct _pi_kernel {
 
       // TODO - this struct is reused as-is for every kernel, so need to reset
       // somehow. Could commandeer clear_local_size() but this will do for now
-      if (index == 0) {
-        sizeAccum = 0;
-        nArgs = 0;
-      }
-      if (index + 1 > nArgs) nArgs = index + 1;
+      if (index == 0) sizeAccum = 0;
 
       // Update the stored value for the argument
       std::memcpy(&storage_[sizeAccum], arg, size);

@@ -78,20 +78,20 @@ pi_result forLatestEvents(const pi_event *event_wait_list,
   std::sort(events.begin(), events.end(), [](pi_event e0, pi_event e1) {
     // Tiered sort creating sublists of streams (smallest value first) in which
     // the corresponding events are sorted into a sequence of newest first.
-    return e0->get_queue()->stream_ < e1->get_queue()->stream_ ||
-           (e0->get_queue()->stream_ == e1->get_queue()->stream_ &&
+    return e0->get_queue()->get() < e1->get_queue()->get() ||
+           (e0->get_queue()->get() == e1->get_queue()->get() &&
             e0->get_event_id() > e1->get_event_id());
   });
 
   bool first = true;
   CUstream lastSeenStream = 0;
   for (pi_event event : events) {
-    if (!event || (!first && event->get_queue()->stream_ == lastSeenStream)) {
+    if (!event || (!first && event->get_queue()->get() == lastSeenStream)) {
       continue;
     }
 
     first = false;
-    lastSeenStream = event->get_queue()->stream_;
+    lastSeenStream = event->get_queue()->get();
 
     auto result = f(event);
     if (result != PI_SUCCESS) {
@@ -2174,7 +2174,7 @@ pi_result cuda_piQueueRelease(pi_queue command_queue) {
 
     ScopedContext active(command_queue->get_context());
 
-    auto stream = queueImpl->stream_;
+    auto stream = queueImpl->get();
     PI_CHECK_ERROR(cuStreamSynchronize(stream));
     PI_CHECK_ERROR(cuStreamDestroy(stream));
 
@@ -2196,7 +2196,7 @@ pi_result cuda_piQueueFinish(pi_queue command_queue) {
     assert(command_queue !=
            nullptr); // need PI_ERROR_INVALID_EXTERNAL_HANDLE error code
     ScopedContext active(command_queue->get_context());
-    result = PI_CHECK_ERROR(cuStreamSynchronize(command_queue->stream_));
+    result = PI_CHECK_ERROR(cuStreamSynchronize(command_queue->get()));
 
   } catch (pi_result err) {
 

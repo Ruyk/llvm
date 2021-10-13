@@ -376,16 +376,16 @@ struct _pi_queue {
   using native_type = CUstream;
 
   native_type stream_;
-  native_type memStream_;
+  native_type altStream_;
   _pi_context *context_;
   _pi_device *device_;
   pi_queue_properties properties_;
   std::atomic_uint32_t refCount_;
   std::atomic_uint32_t eventCount_;
 
-  _pi_queue(CUstream stream, CUstream memStream, _pi_context *context, _pi_device *device,
+  _pi_queue(CUstream stream, CUstream altStream, _pi_context *context, _pi_device *device,
             pi_queue_properties properties)
-      : stream_{stream}, memStream_{memStream}, context_{context}, device_{device},
+      : stream_{stream}, altStream_{altStream}, context_{context}, device_{device},
         properties_{properties}, refCount_{1}, eventCount_{0} {
     cuda_piContextRetain(context_);
     cuda_piDeviceRetain(device_);
@@ -396,9 +396,9 @@ struct _pi_queue {
     cuda_piDeviceRelease(device_);
   }
 
-  native_type get() const noexcept { return stream_; }; // TODO what about memStream_?
+  native_type get() const noexcept { return stream_; };
 
-  native_type get_alt_stream() const noexcept { return memStream_; };
+  native_type get_alt_stream() const noexcept { return altStream_; };
 
   _pi_context *get_context() const { return context_; };
 
@@ -415,13 +415,13 @@ typedef void (*pfn_notify)(pi_event event, pi_int32 eventCommandStatus,
                            void *userData);
 /// PI Event mapping to CUevent
 ///
-struct _pi_event { // TODO map to stream here for stream vs memStream?
+struct _pi_event {
 public:
   using native_type = CUevent;
 
   pi_result record();
 
-  pi_result wait(); // _pi_event->wait() is host blocking!
+  pi_result wait();
 
   pi_result start();
 

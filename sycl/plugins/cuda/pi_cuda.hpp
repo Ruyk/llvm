@@ -600,17 +600,13 @@ struct _pi_kernel {
     using args_index_t = std::array<void *, MAX_PARAM_BYTES>;
     args_t storage_;
     args_size_t paramSizes_;
-    args_index_t indices_;
+    // By filling indices_ with implicit offset args first, we ensure it will always
+    // be the last argument.
+    args_index_t indices_ = { implicitOffsetArgs_ };
     pi_uint32 offsetSum{0};
     size_t nArgs{0}; // excluding implicitOffsetArgs, never actually used (yet)
 
     std::uint32_t implicitOffsetArgs_[3] = {0, 0, 0};
-
-    arguments() {
-      // By filling with implicit offset args first, we ensure it will always
-      // be the last argument.
-      indices_.fill(&implicitOffsetArgs_);
-    }
 
     /// Adds an argument to the kernel.
     /// If the argument existed before, it is replaced.
@@ -641,11 +637,11 @@ struct _pi_kernel {
       std::memcpy(implicitOffsetArgs_, implicitOffset, size);
     }
 
-    void clear_local_size() { offsetSum = 0; }
+    inline void clear_local_size() noexcept { offsetSum = 0; }
 
-    const args_index_t &get_indices() const noexcept { return indices_; }
+    inline const args_index_t &get_indices() const noexcept { return indices_; }
 
-    pi_uint32 get_local_size() const { return offsetSum; }
+    inline pi_uint32 get_local_size() const noexcept { return offsetSum; }
   } args_;
 
   _pi_kernel(CUfunction func, CUfunction funcWithOffsetParam, const char *name,

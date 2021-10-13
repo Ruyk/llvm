@@ -382,10 +382,18 @@ struct _pi_queue {
   pi_queue_properties properties_;
   std::atomic_uint32_t refCount_;
   std::atomic_uint32_t eventCount_;
+  bool useAltStream_{false};
 
   _pi_queue(CUstream stream, CUstream altStream, _pi_context *context, _pi_device *device,
             pi_queue_properties properties)
-      : stream_{stream}, altStream_{altStream}, context_{context}, device_{device},
+      : _pi_queue(stream, context, device, properties) {
+    altStream_ = altStream;
+    useAltStream_ = true;
+  }
+
+  _pi_queue(CUstream stream, _pi_context *context, _pi_device *device,
+            pi_queue_properties properties)
+      : stream_{stream}, context_{context}, device_{device},
         properties_{properties}, refCount_{1}, eventCount_{0} {
     cuda_piContextRetain(context_);
     cuda_piDeviceRetain(device_);
@@ -398,7 +406,9 @@ struct _pi_queue {
 
   native_type get() const noexcept { return stream_; };
 
-  native_type get_alt_stream() const noexcept { return altStream_; };
+  native_type get_alt_stream() const noexcept { return useAltStream_ ? altStream_ : stream_; };
+
+  bool use_alt_stream() const noexcept { return useAltStream_; };
 
   _pi_context *get_context() const { return context_; };
 

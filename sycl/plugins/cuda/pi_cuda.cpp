@@ -2142,7 +2142,7 @@ pi_result cuda_piQueueCreate(pi_context context, pi_device device,
     ScopedContext active(context);
 
     CUstream cuStream;
-    CUstream cuStreamMem;
+    CUstream cuStreamAlt;
     unsigned int flags = 0;
 
     if (properties == __SYCL_PI_CUDA_USE_DEFAULT_STREAM) {
@@ -2158,14 +2158,24 @@ pi_result cuda_piQueueCreate(pi_context context, pi_device device,
       return err;
     }
 
-    // 2nd stream for memops
-    err = PI_CHECK_ERROR(cuStreamCreate(&cuStreamMem, CU_STREAM_NON_BLOCKING));
-    if (err != PI_SUCCESS) {
-      return err;
-    }
+    // TODO document this environment variable
+    static const char *useAltStreamStr = std::getenv("PI_CUDA_USE_ALT_STREAM");
+    bool useAltStream = useAltStreamStr ? (std::stoi(useAltStreamStr) == 1) : false;
 
-    queueImpl = std::unique_ptr<_pi_queue>(
-        new _pi_queue{cuStream, cuStreamMem, context, device, properties});
+    if (useAltStream) {
+      err =
+          PI_CHECK_ERROR(cuStreamCreate(&cuStreamAlt, CU_STREAM_NON_BLOCKING));
+      if (err != PI_SUCCESS) {
+        return err;
+      }
+
+      queueImpl = std::unique_ptr<_pi_queue>(
+          new _pi_queue{cuStream, cuStreamAlt, context, device, properties});
+
+    } else {
+      queueImpl = std::unique_ptr<_pi_queue>(
+          new _pi_queue{cuStream, context, device, properties});
+    }
 
     *queue = queueImpl.release();
 
@@ -2229,9 +2239,11 @@ pi_result cuda_piQueueRelease(pi_queue command_queue) {
     PI_CHECK_ERROR(cuStreamSynchronize(stream));
     PI_CHECK_ERROR(cuStreamDestroy(stream));
 
-    auto memStream = queueImpl->get_alt_stream();
-    PI_CHECK_ERROR(cuStreamSynchronize(memStream));
-    PI_CHECK_ERROR(cuStreamDestroy(memStream));
+    if(queueImpl->use_alt_stream()){
+      auto altStream = queueImpl->get_alt_stream();
+      PI_CHECK_ERROR(cuStreamSynchronize(altStream));
+      PI_CHECK_ERROR(cuStreamDestroy(altStream));
+    }
 
     return PI_SUCCESS;
   } catch (pi_result err) {

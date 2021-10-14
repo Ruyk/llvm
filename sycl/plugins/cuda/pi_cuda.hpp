@@ -380,11 +380,20 @@ struct _pi_queue {
   using native_type = CUstream;
 
   native_type stream_;
+  native_type altStream_;
   _pi_context *context_;
   _pi_device *device_;
   pi_queue_properties properties_;
   std::atomic_uint32_t refCount_;
   std::atomic_uint32_t eventCount_;
+  bool useAltStream_{false};
+
+  _pi_queue(CUstream stream, CUstream altStream, _pi_context *context, _pi_device *device,
+            pi_queue_properties properties)
+      : _pi_queue(stream, context, device, properties) {
+    altStream_ = altStream;
+    useAltStream_ = true;
+  }
 
   _pi_queue(CUstream stream, _pi_context *context, _pi_device *device,
             pi_queue_properties properties)
@@ -400,6 +409,10 @@ struct _pi_queue {
   }
 
   native_type get() const noexcept { return stream_; };
+
+  native_type get_alt_stream() const noexcept { return useAltStream_ ? altStream_ : stream_; };
+
+  bool use_alt_stream() const noexcept { return useAltStream_; };
 
   _pi_context *get_context() const { return context_; };
 
@@ -429,6 +442,8 @@ public:
   native_type get() const noexcept { return evEnd_; };
 
   pi_queue get_queue() const noexcept { return queue_; }
+
+  CUstream get_stream() const noexcept;
 
   pi_command_type get_command_type() const noexcept { return commandType_; }
 
@@ -494,9 +509,9 @@ private:
                          // on through a call to wait(), which implies
                          // that it has completed.
 
-  bool isRecorded_; // Signifies wether a native CUDA event has been recorded
+  bool isRecorded_; // Signifies whether a native CUDA event has been recorded
                     // yet.
-  bool isStarted_;  // Signifies wether the operation associated with the
+  bool isStarted_;  // Signifies whether the operation associated with the
                     // PI event has started or not
                     //
 
@@ -598,42 +613,34 @@ struct _pi_kernel {
   struct arguments {
     static constexpr size_t MAX_PARAM_BYTES = 4000u;
     using args_t = std::array<char, MAX_PARAM_BYTES>;
-    using args_size_t = std::vector<size_t>;
-    using args_index_t = std::vector<void *>;
+    using args_size_t = std::array<size_t, MAX_PARAM_BYTES>;
+    using args_index_t = std::array<void *, MAX_PARAM_BYTES>;
     args_t storage_;
-    args_size_t paramSizes_;
-    args_index_t indices_;
-    args_size_t offsetPerIndex_;
+    // By filling indices_ with implicit offset args first, we ensure it will always
+    // be the last argument.
+    args_index_t indices_ = { implicitOffsetArgs_ };
+    pi_uint32 offsetSum{0};
+    size_t sizeAccum{0};
 
     std::uint32_t implicitOffsetArgs_[3] = {0, 0, 0};
-
-    arguments() {
-      // Place the implicit offset index at the end of the indicies collection
-      indices_.emplace_back(&implicitOffsetArgs_);
-    }
 
     /// Adds an argument to the kernel.
     /// If the argument existed before, it is replaced.
     /// Otherwise, it is added.
-    /// Gaps are filled with empty arguments.
+    /// Gaps are filled with empty arguments. TODO not quite true any more
     /// Implicit offset argument is kept at the back of the indices collection.
     void add_arg(size_t index, size_t size, const void *arg,
                  size_t localSize = 0) {
-      if (index + 2 > indices_.size()) {
-        // Move implicit offset argument index with the end
-        indices_.resize(index + 2, indices_.back());
-        // Ensure enough space for the new argument
-        paramSizes_.resize(index + 1);
-        offsetPerIndex_.resize(index + 1);
-      }
-      paramSizes_[index] = size;
-      // calculate the insertion point on the array
-      size_t insertPos = std::accumulate(std::begin(paramSizes_),
-                                         std::begin(paramSizes_) + index, 0);
+
+      // TODO - this struct is reused as-is for every kernel, so need to reset
+      // somehow. Could commandeer clear_local_size() but this will do for now
+      if (index == 0) sizeAccum = 0;
+
       // Update the stored value for the argument
-      std::memcpy(&storage_[insertPos], arg, size);
-      indices_[index] = &storage_[insertPos];
-      offsetPerIndex_[index] = localSize;
+      std::memcpy(&storage_[sizeAccum], arg, size);
+      indices_[index] = &storage_[sizeAccum];
+      sizeAccum += size;
+      offsetSum += localSize;
     }
 
     void add_local_arg(size_t index, size_t size) {
@@ -646,16 +653,11 @@ struct _pi_kernel {
       std::memcpy(implicitOffsetArgs_, implicitOffset, size);
     }
 
-    void clear_local_size() {
-      std::fill(std::begin(offsetPerIndex_), std::end(offsetPerIndex_), 0);
-    }
+    inline void clear_local_size() noexcept { offsetSum = 0; }
 
-    const args_index_t &get_indices() const noexcept { return indices_; }
+    inline const args_index_t &get_indices() const noexcept { return indices_; }
 
-    pi_uint32 get_local_size() const {
-      return std::accumulate(std::begin(offsetPerIndex_),
-                             std::end(offsetPerIndex_), 0);
-    }
+    inline pi_uint32 get_local_size() const noexcept { return offsetSum; }
   } args_;
 
   _pi_kernel(CUfunction func, CUfunction funcWithOffsetParam, const char *name,

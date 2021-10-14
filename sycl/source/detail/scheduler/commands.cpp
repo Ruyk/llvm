@@ -1768,6 +1768,7 @@ pi_result ExecCGCommand::SetKernelParamsAndLaunch(
       break;
     }
     case kernel_param_kind_t::kind_std_layout: {
+      // TODO - clarify in documentation the use of piKernelSetArg
       Plugin.call<PiApiKind::piKernelSetArg>(Kernel, NextTrueIndex, Arg.MSize,
                                              Arg.MPtr);
       break;

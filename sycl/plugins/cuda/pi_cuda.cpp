@@ -511,6 +511,7 @@ pi_result _pi_event::release() {
   return PI_SUCCESS;
 }
 
+// TODO joe: re-add Ruyman's hack here properly
 // makes all future work submitted to queue wait for all work captured in event.
 pi_result enqueueEventWait(pi_queue queue, pi_event event) {
   // for native events, the cuStreamWaitEvent call is used.

@@ -25,6 +25,8 @@
 #include <mutex>
 #include <regex>
 
+static const char *useAltStreamStr = std::getenv("PI_CUDA_USE_ALT_STREAM");
+
 namespace {
 std::string getCudaVersionString() {
   int driver_version = 0;
@@ -2159,7 +2161,6 @@ pi_result cuda_piQueueCreate(pi_context context, pi_device device,
     }
 
     // TODO document this environment variable
-    static const char *useAltStreamStr = std::getenv("PI_CUDA_USE_ALT_STREAM");
     bool useAltStream = useAltStreamStr ? (std::stoi(useAltStreamStr) == 1) : false;
 
     if (useAltStream) {
